@@ -23,8 +23,8 @@
     'border:1.1vh solid rgba(255,255,255,.25);border-top-color:#ff4d3d;animation:tc-spin .8s linear infinite}' +
     '@keyframes tc-spin{to{transform:rotate(360deg)}}';
   (document.head || document.documentElement).appendChild(css);
-  // The stream's own volume (left/right and the volume buttons, from the app). Over the TV's optical out the TV's
-  // volume does nothing, but this scales the sound itself, so it reaches the sound system. 20 steps of 2 dB; kept.
+  // The stream's own volume (left/right, from the app): it scales the sound itself, so it also works when the TV's
+  // volume doesn't reach the sound system (optical out). 20 steps of 2 dB; kept.
   var STEPS = 20, vol = STEPS, muted = false, hud = null, hudTimer = 0;
   try { var saved = parseInt(localStorage.getItem('tcTvVol'), 10); if (saved >= 0 && saved <= STEPS) vol = saved; } catch (e) {}
   css.textContent += '#tc-vol{position:fixed;left:50%;bottom:7vh;transform:translateX(-50%);display:flex;align-items:center;gap:2.2vh;' +
