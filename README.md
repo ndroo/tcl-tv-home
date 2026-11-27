@@ -102,3 +102,7 @@ second) and every tile moves; OK opens one camera in HD (one real decoder) with 
 - Clearing a `<video>`'s `src` doesn't free its hardware decoder straight away;
   `removeAttribute('src')` + `load()` does.
 - Tapo's "VGA" relay stream is really 1280×720 (1280×960 on a doorbell).
+
+## License
+
+[MIT](LICENSE). Use at your own risk: it changes how your TV runs, and models differ.
