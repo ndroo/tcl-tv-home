@@ -19,7 +19,7 @@ Built with the plain Android SDK tools (no Gradle, no Android Studio) on macOS.
 | Change | Why | Undo |
 |---|---|---|
 | 19 apps disabled (`debloat-list.txt`) | voice search, TCL assistant / Alexa / telemetry / app store / cloud login, TCL's remote app switcher, recommendations, demo-mode apps, the stock home screen | `restore.sh` |
-| **TV Home** (`tvhome/`) is the home screen | a row of TV apps (order in `Apps.java`; focus starts on the first) · inputs · Wi-Fi · Cameras · Settings (hide any app or input) · clock | `restore.sh` re-enables the stock one and uninstalls this |
+| **TV Home** (`tvhome/`) is the home screen | a row of TV apps (order in `Apps.java`; focus starts on the first) · inputs · Wi-Fi · Cameras · Settings (hide any app or input; turn Wi-Fi or Cameras off) · clock | `restore.sh` re-enables the stock one and uninstalls this |
 | YouTube restricted in background | it started itself at every boot; it still opens when used or cast to | `restore.sh` |
 | Animations 0.5× | snappier menus | `restore.sh` |
 | Screensaver after 2 h instead of 5 min | it covered casts 5 min after the last remote press | `restore.sh` |

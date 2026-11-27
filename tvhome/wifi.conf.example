@@ -1,6 +1,6 @@
 # The "Get the Wi-Fi" tile on TV Home: a QR code and the network name/password for guests.
 # Copy to wifi.conf (ignored by git), fill in, then ./build.sh and reinstall (disable.sh installs it).
-# Without wifi.conf the page says no Wi-Fi details are set up.
+# Without wifi.conf there's no Wi-Fi tile (it can also be turned off in TV Home's Settings).
 SSID=your-network-name
 PASSWORD=your-wifi-password
 # WPA covers WPA/WPA2/WPA3 personal. Use WEP, or nopass for an open network.

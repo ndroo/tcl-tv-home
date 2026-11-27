@@ -1,7 +1,7 @@
 # The Cameras tile on TV Home: a camera site that signs a TV in with a device key and has a
 # full-screen TV wall (GET /device/login with "Authorization: Bearer <key>", then /wall?house=<slug>&tv=1).
 # Copy to cameras.conf (ignored by git), fill in, then ./build.sh and reinstall.
-# Without URL and KEY the tile says cameras aren't set up.
+# Without URL and KEY there's no Cameras tile (it can also be turned off in TV Home's Settings).
 URL=https://cameras.example.com
 # the house the tile opens full screen, by its slug (lowercase, dashes)
 HOUSE=cottage

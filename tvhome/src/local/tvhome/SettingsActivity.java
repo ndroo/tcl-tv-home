@@ -27,19 +27,19 @@ import java.util.List;
 
 /**
  * TV Home's settings, laid out for a 960x540 dp screen: the title and "TV settings" on one line, then every
- * app as a banner card, four across, and every input, five across; OK shows or hides one on the home screen.
+ * app as a banner card, four across, every input, five across, and the optional tiles (Wi-Fi, Cameras); OK shows
+ * or hides one on the home screen.
  */
 public class SettingsActivity extends Activity {
     private static final int ACCENT = 0xFF3B82F6, TILE = 0xFF1C232C, TEXT = 0xFFFFFFFF, MUTED = 0xFFA3AEBD;
-    private static final int COLS = 4, GAP = 18, SIDE = 56;
+    private static final int COLS = 4, GAP = 18, SIDE = 56, EDGE = 12;
     private LinearLayout grid;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(SIDE), dp(34), dp(SIDE), dp(16));
-        root.setClipChildren(false);
+        root.setPadding(dp(SIDE - EDGE), dp(34), dp(SIDE - EDGE), dp(14));
         root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{0xFF0A0D12, 0xFF151B24}));
 
         // title ............................................. [gear TV settings]
@@ -65,15 +65,17 @@ public class SettingsActivity extends Activity {
             try { startActivity(new Intent(Settings.ACTION_SETTINGS)); } catch (ActivityNotFoundException ignored) {}
         });
         head.addView(tv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(60)));
+        head.setPadding(dp(EDGE), 0, dp(EDGE), 0);
         root.addView(head);
 
         ScrollView scroll = new ScrollView(this);   // scrolls down to the inputs
-        scroll.setClipChildren(false);
-        scroll.setClipToPadding(false);
+        // Clipped to its own area (root clips its children), so cards scrolled up don't draw over the title; EDGE of
+        // room inside it for a focused card to grow into.
         scroll.setVerticalScrollBarEnabled(false);
         grid = new LinearLayout(this);
         grid.setOrientation(LinearLayout.VERTICAL);
         grid.setClipChildren(false);
+        grid.setPadding(dp(EDGE), dp(4), dp(EDGE), dp(16));
         scroll.addView(grid);
         root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         setContentView(root);
@@ -129,7 +131,63 @@ public class SettingsActivity extends Activity {
                 row.addView(inputCard(inputs.get(i)), cl);
             }
         }
+
+        grid.addView(sectionHead("ALSO ON THE HOME SCREEN", "OK turns one on or off. A tile that isn't set up stays off."));
+        LinearLayout extras = new LinearLayout(this);
+        extras.setOrientation(LinearLayout.HORIZONTAL);
+        extras.setClipChildren(false);
+        int exW = (width - dp(SIDE) * 2 - dp(GAP)) / 2;
+        LinearLayout.LayoutParams el = new LinearLayout.LayoutParams(exW, ViewGroup.LayoutParams.WRAP_CONTENT);
+        extras.addView(tileCard(Tiles.WIFI, Icons.WIFI, "Get the Wi-Fi", "QR code and password for guests",
+                "Not set up: add tvhome/wifi.conf"), el);
+        LinearLayout.LayoutParams el2 = new LinearLayout.LayoutParams(exW, ViewGroup.LayoutParams.WRAP_CONTENT);
+        el2.leftMargin = dp(GAP);
+        extras.addView(tileCard(Tiles.CAMERAS, Icons.CAMERA, "Cameras", "The camera wall, full screen",
+                "Not set up: add tvhome/cameras.conf"), el2);
+        LinearLayout.LayoutParams xl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        xl.bottomMargin = dp(12);
+        grid.addView(extras, xl);
         if (first != null && getCurrentFocus() == null) first.requestFocus();
+    }
+
+    /** Wi-Fi or Cameras: icon, name, what it is, and On / Off (or "Not set up", which OK can't change). */
+    private View tileCard(String tile, int icon, String title, String about, String notSetUp) {
+        boolean ready = Tiles.ready(this, tile);
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(dp(16), dp(12), dp(12), dp(12));
+        focusable(card, 14);
+        ImageView iv = new ImageView(this);
+        iv.setImageDrawable(new Icons(icon, TEXT));
+        card.addView(iv, new LinearLayout.LayoutParams(dp(28), dp(28)));
+        LinearLayout words = new LinearLayout(this);
+        words.setOrientation(LinearLayout.VERTICAL);
+        words.setPadding(dp(14), 0, dp(8), 0);
+        TextView name = text(title, 18, TEXT, true);
+        words.addView(name);
+        TextView sub = text(ready ? about : notSetUp, 13, 0xFFC9D1DC, false);
+        words.addView(sub);
+        card.addView(words, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView badge = text("", 13, TEXT, true);
+        badge.setPadding(dp(10), dp(3), dp(10), dp(3));
+        card.addView(badge);
+        Runnable draw = () -> {
+            boolean on = Tiles.shown(this, tile);
+            badge.setText(!ready ? "Off" : on ? "\u25cf On" : "Off");
+            badge.setTextColor(on ? 0xFF4ADE80 : MUTED);
+            badge.setBackground(rounded(on ? 0x2E4ADE80 : 0x26FFFFFF, 99));
+            iv.setAlpha(on ? 1f : 0.45f);
+            name.setAlpha(on ? 1f : 0.5f);
+        };
+        draw.run();
+        card.setOnClickListener(v -> {
+            if (!ready) return;
+            Tiles.setHidden(this, tile, !Tiles.hidden(this).contains(tile));
+            draw.run();
+        });
+        card.setOnFocusChangeListener((v, has) -> v.animate().scaleX(has ? 1.04f : 1f).scaleY(has ? 1.04f : 1f).setDuration(110).start());
+        return card;
     }
 
     private View sectionHead(String title, String hintText) {

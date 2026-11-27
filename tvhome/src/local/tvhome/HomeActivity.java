@@ -59,6 +59,7 @@ public class HomeActivity extends Activity {
     private TvInputManager tvm;
     private LinearLayout inputsRow;
     private View inputsTitle;
+    private LinearLayout bottomRow;
     private LinearLayout appsRow;
     private HorizontalScrollView appsScroll;
     private TextView castLine;
@@ -90,6 +91,7 @@ public class HomeActivity extends Activity {
         refreshCastLine();
         refreshInputs();
         refreshApps();
+        refreshBottom();
         focusFirst();
     }
 
@@ -166,18 +168,31 @@ public class HomeActivity extends Activity {
 
         root.addView(new View(this), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
-        LinearLayout bottom = row();
-        View wifi = iconTile(Icons.WIFI, "Get the Wi-Fi", null);
-        wifi.setOnClickListener(v -> startActivity(new Intent(this, WifiActivity.class)));
-        bottom.addView(wifi, tileParams(0));
-        View cams = iconTile(Icons.CAMERA, "Cameras", null);
-        cams.setOnClickListener(v -> startActivity(new Intent(this, CamerasActivity.class)));
-        bottom.addView(cams, tileParams(0));
+        bottomRow = row();
+        root.addView(bottomRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(76)));
+        return root;
+    }
+
+    /** Wi-Fi and Cameras when they're set up and on (Settings), then Settings, which is always there. Each a third
+     *  of the row, from the left, so fewer don't stretch. */
+    private void refreshBottom() {
+        if (bottomRow == null) return;
+        bottomRow.removeAllViews();
+        int room = Math.round(getResources().getDisplayMetrics().widthPixels / getResources().getDisplayMetrics().density) - 96;
+        int w = room / 3 - 16;
+        if (Tiles.shown(this, Tiles.WIFI)) {
+            View wifi = iconTile(Icons.WIFI, "Get the Wi-Fi", null);
+            wifi.setOnClickListener(v -> startActivity(new Intent(this, WifiActivity.class)));
+            bottomRow.addView(wifi, tileParams(w));
+        }
+        if (Tiles.shown(this, Tiles.CAMERAS)) {
+            View cams = iconTile(Icons.CAMERA, "Cameras", null);
+            cams.setOnClickListener(v -> startActivity(new Intent(this, CamerasActivity.class)));
+            bottomRow.addView(cams, tileParams(w));
+        }
         View settings = iconTile(Icons.SETTINGS, "Settings", null);
         settings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
-        bottom.addView(settings, tileParams(0));
-        root.addView(bottom, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(76)));
-        return root;
+        bottomRow.addView(settings, tileParams(w));
     }
 
     // ---------------------------------------------------------------- inputs
