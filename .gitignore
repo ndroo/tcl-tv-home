@@ -1,6 +1,7 @@
 # secrets: real config (see the .example files) - baked into the APKs at build time
 tvhome/wifi.conf
 tvhome/cameras.conf
+tvhome/inputs.conf
 
 # built apps (they contain the config above) and signing keys (keep a private copy: updates need them)
 *.apk

@@ -27,7 +27,7 @@ import java.util.List;
 
 /**
  * TV Home's settings, laid out for a 960x540 dp screen: the title and "TV settings" on one line, then every
- * app as a banner card, four across (two rows for eight apps, no scrolling); OK shows or hides one.
+ * app as a banner card, four across, and every input, five across; OK shows or hides one on the home screen.
  */
 public class SettingsActivity extends Activity {
     private static final int ACCENT = 0xFF3B82F6, TILE = 0xFF1C232C, TEXT = 0xFFFFFFFF, MUTED = 0xFFA3AEBD;
@@ -67,19 +67,7 @@ public class SettingsActivity extends Activity {
         head.addView(tv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(60)));
         root.addView(head);
 
-        LinearLayout sec = new LinearLayout(this);
-        sec.setOrientation(LinearLayout.HORIZONTAL);
-        sec.setGravity(Gravity.BOTTOM);
-        sec.setPadding(0, dp(24), 0, dp(12));
-        TextView label = text("APPS ON THE HOME SCREEN", 13, MUTED, true);
-        label.setLetterSpacing(0.12f);
-        sec.addView(label);
-        TextView hint = text("OK shows or hides one. Hidden apps stay installed and keep working, casting included.", 13, 0xFF7C8796, false);
-        hint.setPadding(dp(16), 0, 0, 0);
-        sec.addView(hint);
-        root.addView(sec);
-
-        ScrollView scroll = new ScrollView(this);   // only scrolls past eight apps
+        ScrollView scroll = new ScrollView(this);   // scrolls down to the inputs
         scroll.setClipChildren(false);
         scroll.setClipToPadding(false);
         scroll.setVerticalScrollBarEnabled(false);
@@ -98,6 +86,7 @@ public class SettingsActivity extends Activity {
 
     private void fill() {
         grid.removeAllViews();
+        grid.addView(sectionHead("APPS ON THE HOME SCREEN", "OK shows or hides one. Hidden apps stay installed and keep working, casting included."));
         PackageManager pm = getPackageManager();
         List<ResolveInfo> apps = Apps.all(this);
         int width = getResources().getDisplayMetrics().widthPixels;
@@ -120,7 +109,73 @@ public class SettingsActivity extends Activity {
             row.addView(card, cl);
             if (first == null) first = card;
         }
+
+        List<Inputs.Input> inputs = Inputs.all(this);
+        if (!inputs.isEmpty()) {
+            grid.addView(sectionHead("INPUTS ON THE HOME SCREEN", "OK shows or hides one."));
+            int cols = 5, inW = (width - dp(SIDE) * 2 - dp(GAP) * (cols - 1)) / cols;
+            for (int i = 0; i < inputs.size(); i++) {
+                if (i % cols == 0) {
+                    row = new LinearLayout(this);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    row.setClipChildren(false);
+                    LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    if (i > 0) rl.topMargin = dp(GAP);
+                    rl.bottomMargin = dp(12);
+                    grid.addView(row, rl);
+                }
+                LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(inW, ViewGroup.LayoutParams.WRAP_CONTENT);
+                if (i % cols > 0) cl.leftMargin = dp(GAP);
+                row.addView(inputCard(inputs.get(i)), cl);
+            }
+        }
         if (first != null && getCurrentFocus() == null) first.requestFocus();
+    }
+
+    private View sectionHead(String title, String hintText) {
+        LinearLayout sec = new LinearLayout(this);
+        sec.setOrientation(LinearLayout.HORIZONTAL);
+        sec.setGravity(Gravity.BOTTOM);
+        sec.setPadding(0, dp(24), 0, dp(12));
+        TextView label = text(title, 13, MUTED, true);
+        label.setLetterSpacing(0.12f);
+        sec.addView(label);
+        TextView hint = text(hintText, 13, 0xFF7C8796, false);
+        hint.setPadding(dp(16), 0, 0, 0);
+        sec.addView(hint);
+        return sec;
+    }
+
+    /** An input: its name, its port (and note) under it, and a Shown / Hidden badge; OK flips it. */
+    private View inputCard(Inputs.Input in) {
+        String id = in.info.getId();
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(16), dp(12), dp(12), dp(12));
+        focusable(card, 14);
+        TextView name = text(in.label, 18, TEXT, true);
+        card.addView(name);
+        String sub = in.port != null ? in.port + (TextUtils.isEmpty(in.detail) ? "" : " \u00b7 " + in.detail)
+                : (TextUtils.isEmpty(in.detail) ? "Input" : in.detail);
+        TextView subText = text(sub, 13, 0xFFC9D1DC, false);
+        card.addView(subText);
+        TextView badge = text("", 13, TEXT, true);
+        badge.setPadding(dp(10), dp(3), dp(10), dp(3));
+        LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        bl.topMargin = dp(10);
+        card.addView(badge, bl);
+        Runnable draw = () -> {
+            boolean h = Inputs.hidden(this).contains(id);
+            badge.setText(h ? "Hidden" : "\u25cf Shown");
+            badge.setTextColor(h ? MUTED : 0xFF4ADE80);
+            badge.setBackground(rounded(h ? 0x26FFFFFF : 0x2E4ADE80, 99));
+            name.setAlpha(h ? 0.5f : 1f);
+            subText.setAlpha(h ? 0.5f : 1f);
+        };
+        draw.run();
+        card.setOnClickListener(v -> { Inputs.setHidden(this, id, !Inputs.hidden(this).contains(id)); draw.run(); });
+        card.setOnFocusChangeListener((v, has) -> v.animate().scaleX(has ? 1.04f : 1f).scaleY(has ? 1.04f : 1f).setDuration(110).start());
+        return card;
     }
 
     /** A banner with the app's name and a Shown / Hidden badge under it; OK flips it. */

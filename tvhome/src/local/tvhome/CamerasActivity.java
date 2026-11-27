@@ -116,16 +116,6 @@ public class CamerasActivity extends Activity {
         web.evaluateJavascript("window.tvBack ? window.tvBack() : false", r -> { if (!"true".equals(r)) finish(); });
     }
 
-    /** "cottage" -> "Cottage", "lake-house" -> "Lake House". */
-    static String label(String slug) {
-        StringBuilder out = new StringBuilder();
-        for (String w : (slug == null ? "" : slug).split("[-_ ]+")) {
-            if (w.isEmpty()) continue;
-            if (out.length() > 0) out.append(' ');
-            out.append(Character.toUpperCase(w.charAt(0))).append(w.substring(1));
-        }
-        return out.toString();
-    }
 
     @Override protected void onStop() {
         super.onStop();

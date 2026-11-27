@@ -3,7 +3,6 @@ package local.tvhome;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -38,6 +37,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -57,8 +57,8 @@ public class HomeActivity extends Activity {
     private static final int MUTED = 0xFFA3AEBD;
 
     private TvInputManager tvm;
-    private SharedPreferences prefs;
     private LinearLayout inputsRow;
+    private View inputsTitle;
     private LinearLayout appsRow;
     private HorizontalScrollView appsScroll;
     private TextView castLine;
@@ -76,7 +76,6 @@ public class HomeActivity extends Activity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         tvm = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
-        prefs = getSharedPreferences("tvhome", MODE_PRIVATE);
         setContentView(buildLayout());
         if (tvm != null) tvm.registerCallback(inputCallback, main);
     }
@@ -91,12 +90,12 @@ public class HomeActivity extends Activity {
         refreshCastLine();
         refreshInputs();
         refreshApps();
-        focusLastInput();
+        focusFirst();
     }
 
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        focusLastInput();  // Home pressed while already home: jump back to the last input tile
+        focusFirst();  // Home pressed while already home: back to the top left
     }
 
     @Override public void onBackPressed() {
@@ -132,10 +131,6 @@ public class HomeActivity extends Activity {
         header.addView(clock);
         root.addView(header);
 
-        root.addView(section("Inputs"));
-        inputsRow = row();
-        root.addView(inputsRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(104)));
-
         root.addView(section("Apps"));
         // A scrolling row of 16:9 tiles: as many apps as there are, banners uncropped; the remote scrolls it.
         appsRow = row();
@@ -164,19 +159,21 @@ public class HomeActivity extends Activity {
         root.addView(apps, appsLp);
         appsScroll = apps;
 
+        inputsTitle = section("Inputs");
+        root.addView(inputsTitle);
+        inputsRow = row();
+        root.addView(inputsRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(104)));
+
         root.addView(new View(this), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
 
         LinearLayout bottom = row();
-        View wifi = iconTile(Icons.WIFI, "Get the Wi-Fi", "QR code + password");
+        View wifi = iconTile(Icons.WIFI, "Get the Wi-Fi", null);
         wifi.setOnClickListener(v -> startActivity(new Intent(this, WifiActivity.class)));
         bottom.addView(wifi, tileParams(0));
-        String camHouse = Conf.read(this, "cameras.conf").getOrDefault("HOUSE", "cottage");
-        Map<String, String> camConf = Conf.read(this, "cameras.conf");
-        boolean camsReady = !TextUtils.isEmpty(camConf.get("KEY")) && !TextUtils.isEmpty(camConf.get("URL"));
-        View cams = iconTile(Icons.CAMERA, "Cameras", camsReady ? CamerasActivity.label(camHouse) + ", full screen" : "Not set up yet");
+        View cams = iconTile(Icons.CAMERA, "Cameras", null);
         cams.setOnClickListener(v -> startActivity(new Intent(this, CamerasActivity.class)));
         bottom.addView(cams, tileParams(0));
-        View settings = iconTile(Icons.SETTINGS, "Settings", "TV settings, apps on home");
+        View settings = iconTile(Icons.SETTINGS, "Settings", null);
         settings.setOnClickListener(v -> startActivity(new Intent(this, SettingsActivity.class)));
         bottom.addView(settings, tileParams(0));
         root.addView(bottom, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(76)));
@@ -185,133 +182,53 @@ public class HomeActivity extends Activity {
 
     // ---------------------------------------------------------------- inputs
 
-    private static final class Input {
-        TvInputInfo info;
-        String label;
-        String detail;
-        int state;
-    }
-
-    private List<Input> inputs() {
-        List<Input> out = new ArrayList<>();
-        if (tvm == null) return out;
-        List<TvInputInfo> all;
-        try {
-            all = tvm.getTvInputList();
-        } catch (RuntimeException e) {
-            return out;
-        }
-        // HDMI-CEC devices show up as child inputs; use their names to describe the port.
-        Map<String, String> cecNames = new HashMap<>();
-        List<TvInputInfo> top = new ArrayList<>();
-        for (TvInputInfo i : all) {
-            if (i.getParentId() != null) {
-                CharSequence l = i.loadLabel(this);
-                if (!TextUtils.isEmpty(l)) cecNames.put(i.getParentId(), l.toString());
-            } else if (!i.isHidden(this)) {
-                top.add(i);
-            }
-        }
-        Collections.sort(top, (a, b) -> {
-            int r = Integer.compare(rank(a), rank(b));
-            return r != 0 ? r : a.getId().compareTo(b.getId());
-        });
-        int hdmi = 0;
-        for (TvInputInfo i : top) {
-            Input in = new Input();
-            in.info = i;
-            if (i.getType() == TvInputInfo.TYPE_HDMI) hdmi++;
-            CharSequence custom = i.loadCustomLabel(this);
-            CharSequence label = !TextUtils.isEmpty(custom) ? custom : i.loadLabel(this);
-            in.label = TextUtils.isEmpty(label) ? fallbackLabel(i, hdmi) : label.toString();
-            in.state = safeState(i.getId());
-            String cec = cecNames.get(i.getId());
-            if (cec != null) in.detail = cec;
-            else if (i.getType() == TvInputInfo.TYPE_TUNER) in.detail = "Live TV";
-            else if (i.getType() == TvInputInfo.TYPE_HDMI) in.detail = stateText(in.state);
-            else in.detail = "";   // AV can't tell if anything's plugged in
-            out.add(in);
-        }
-        return out;
-    }
-
-    private int safeState(String id) {
-        try {
-            return tvm.getInputState(id);
-        } catch (RuntimeException e) {
-            return TvInputManager.INPUT_STATE_CONNECTED;
-        }
-    }
-
-    private static int rank(TvInputInfo i) {
-        switch (i.getType()) {
-            case TvInputInfo.TYPE_HDMI: return 0;
-            case TvInputInfo.TYPE_TUNER: return 3;
-            default: return 2;
-        }
-    }
-
-    private static String fallbackLabel(TvInputInfo i, int hdmiNumber) {
-        switch (i.getType()) {
-            case TvInputInfo.TYPE_HDMI: return "HDMI " + hdmiNumber;
-            case TvInputInfo.TYPE_TUNER: return "Antenna";
-            case TvInputInfo.TYPE_COMPOSITE: return "AV";
-            case TvInputInfo.TYPE_COMPONENT: return "Component";
-            default: return "Input";
-        }
-    }
-
-    private static String stateText(int state) {
-        if (state == TvInputManager.INPUT_STATE_DISCONNECTED) return "Nothing plugged in";
-        if (state == TvInputManager.INPUT_STATE_CONNECTED_STANDBY) return "Standby";
-        return "Connected";
-    }
-
     private void refreshInputs() {
         if (inputsRow == null) return;
         View focused = getCurrentFocus();
         Object focusedTag = focused != null ? focused.getTag() : null;
-        String last = prefs.getString("last_input", null);
         inputsRow.removeAllViews();
-        for (Input in : inputs()) {
+        Set<String> hidden = Inputs.hidden(this);   // Settings -> Inputs on the home screen
+        List<Inputs.Input> shown = new ArrayList<>();
+        for (Inputs.Input in : Inputs.all(this)) if (!hidden.contains(in.info.getId())) shown.add(in);
+        // Tiles keep the size five would have, so two shown don't stretch across the screen
+        int room = Math.round(getResources().getDisplayMetrics().widthPixels / getResources().getDisplayMetrics().density) - 96;
+        int w = room / Math.max(5, shown.size()) - 16;
+        inputsTitle.setVisibility(shown.isEmpty() ? View.GONE : View.VISIBLE);
+        inputsRow.setVisibility(shown.isEmpty() ? View.GONE : View.VISIBLE);
+        for (Inputs.Input in : shown) {
             boolean live = in.state != TvInputManager.INPUT_STATE_DISCONNECTED;
-            String detail = in.info.getId().equals(last) ? "Last used" : in.detail;
-            View t = labelTile(in.label, detail, live);
+            View t = labelTile(in.label, in.detail, in.port, live);
             t.setTag(in.info.getId());
             t.setOnClickListener(v -> openInput(in.info));
-            inputsRow.addView(t, tileParams(0));
+            inputsRow.addView(t, tileParams(w));
             if (in.info.getId().equals(focusedTag)) t.requestFocus();
         }
     }
 
     private void openInput(TvInputInfo i) {
-        prefs.edit().putString("last_input", i.getId()).apply();
         PackageManager pm = getPackageManager();
         Intent liveTv = pm.getLeanbackLaunchIntentForPackage(LIVE_TV);
         if (i.isPassthroughInput()) {
             Intent view = new Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(i.getId()));
             if (launch(view)) return;
+        } else {
+            // The tuner: just opening the TV app shows the last source (AV, say). "Show this input's channels" makes it
+            // switch to the tuner (and with none scanned, TCL's TV app offers a scan).
+            Intent view = new Intent(Intent.ACTION_VIEW)
+                    .setDataAndType(TvContract.buildChannelsUriForInput(i.getId()), TvContract.Channels.CONTENT_TYPE)
+                    .setPackage(LIVE_TV);
+            if (view.resolveActivity(pm) != null && launch(view)) return;
         }
         launch(liveTv);
     }
 
-    private void focusLastInput() {
+    /** The top-left tile: the first app (the row scrolled back to its start), or the first input if no apps show. */
+    private void focusFirst() {
         main.post(() -> {
-            if (inputsRow == null || inputsRow.getChildCount() == 0) return;
-            String last = prefs.getString("last_input", null);
-            View target = null;
-            for (int k = 0; k < inputsRow.getChildCount(); k++) {
-                View c = inputsRow.getChildAt(k);
-                if (last != null && last.equals(c.getTag())) { target = c; break; }
-            }
-            if (target == null) {
-                for (int k = 0; k < inputsRow.getChildCount(); k++) {
-                    View c = inputsRow.getChildAt(k);
-                    if (c.getAlpha() > 0.9f) { target = c; break; }
-                }
-            }
-            if (target == null) target = inputsRow.getChildAt(0);
-            target.requestFocus();
+            View target = appsRow != null && appsRow.getChildCount() > 0 ? appsRow.getChildAt(0)
+                    : inputsRow != null && inputsRow.getChildCount() > 0 ? inputsRow.getChildAt(0) : null;
+            if (appsScroll != null) appsScroll.scrollTo(0, 0);
+            if (target != null) target.requestFocus();
         });
     }
 
@@ -334,7 +251,7 @@ public class HomeActivity extends Activity {
             CharSequence label = r.loadLabel(pm);
             Drawable banner = ai.loadBanner(pm);
             if (banner == null) banner = ai.applicationInfo.loadBanner(pm);
-            View t = banner != null ? bannerTile(banner, label) : labelTile(label.toString(), "", true);
+            View t = banner != null ? bannerTile(banner, label) : labelTile(label.toString(), "", null, true);
             Intent open = new Intent(Intent.ACTION_MAIN)
                     .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
                     .setClassName(ai.packageName, ai.name);
@@ -372,18 +289,33 @@ public class HomeActivity extends Activity {
 
     // ---------------------------------------------------------------- views
 
-    private View labelTile(String title, String detail, boolean live) {
+    private View labelTile(String title, String detail, String corner, boolean live) {
+        FrameLayout tile = new FrameLayout(this);
+        tile.setFocusable(true);
+        tile.setClickable(true);
+        tile.setBackground(states(rounded(ACCENT, 14), rounded(TILE, 14)));
         LinearLayout t = new LinearLayout(this);
         t.setOrientation(LinearLayout.VERTICAL);
         t.setGravity(Gravity.CENTER_VERTICAL);
         t.setPadding(dp(20), dp(10), dp(14), dp(10));
-        t.setFocusable(true);
-        t.setClickable(true);
-        t.setBackground(states(rounded(ACCENT, 14), rounded(TILE, 14)));
-        t.addView(text(title, 22, TEXT, true));
+        // A long name ("Fireplace TV") shrinks to fit the tile rather than being cut off
+        TextView name = text(title, 22, TEXT, true);
+        name.setSingleLine(false);
+        name.setMaxLines(1);
+        name.setAutoSizeTextTypeUniformWithConfiguration(15, 22, 1, TypedValue.COMPLEX_UNIT_SP);
+        t.addView(name, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(30)));
         if (!TextUtils.isEmpty(detail)) t.addView(text(detail, 13, 0xFFC9D1DC, false));
-        grow(t, live ? 1f : 0.45f);
-        return t;
+        tile.addView(t, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        if (!TextUtils.isEmpty(corner)) {   // the port, small, top right ("HDMI 2")
+            TextView c = text(corner.toUpperCase(java.util.Locale.ROOT), 10, 0xB3C9D1DC, true);
+            c.setLetterSpacing(0.1f);
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END);
+            lp.setMargins(0, dp(9), dp(12), 0);
+            tile.addView(c, lp);
+        }
+        grow(tile, live ? 1f : 0.45f);
+        return tile;
     }
 
     private View iconTile(int icon, String title, String detail) {

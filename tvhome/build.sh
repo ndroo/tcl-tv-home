@@ -14,6 +14,8 @@ if [ -f wifi.conf ]; then
 fi
 # Cameras tile: the camera site, the house it opens and this TV's device key
 [ -f cameras.conf ] && cp cameras.conf build/assets/cameras.conf
+# Our own names for the input tiles (HDMI 2 = PlayStation, ...)
+[ -f inputs.conf ] && cp inputs.conf build/assets/inputs.conf
 # java.* from the JDK's Java 8 API (lambdas need it), android.* from android.jar; d8 desugars.
 javac --release 8 -classpath "$JAR" -d build/classes $(find src -name '*.java')
 "$BT/d8" --release --min-api 28 --lib "$JAR" --output build/dex $(find build/classes -name '*.class')

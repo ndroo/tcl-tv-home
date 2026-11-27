@@ -1,0 +1,7 @@
+# Optional: your own names for TV Home's input tiles. Copy to inputs.conf (ignored by git), then ./build.sh and
+# reinstall. Each line: the TV's name for the port = the name to show, optionally "| a note" for the line under it.
+# A renamed tile shows the port's own name small in its corner. (To leave an input off the home screen, hide it in
+# TV Home's Settings.)
+HDMI 1=Sound bar | Audio
+HDMI 2=Games console | Gaming
+HDMI 3=Streaming stick | Chromecast

@@ -19,7 +19,7 @@ Built with the plain Android SDK tools (no Gradle, no Android Studio) on macOS.
 | Change | Why | Undo |
 |---|---|---|
 | 19 apps disabled (`debloat-list.txt`) | voice search, TCL assistant / Alexa / telemetry / app store / cloud login, TCL's remote app switcher, recommendations, demo-mode apps, the stock home screen | `restore.sh` |
-| **TV Home** (`tvhome/`) is the home screen | inputs · a row of TV apps (order in `Apps.java`, hide any in Settings) · Wi-Fi · Cameras · Settings · clock | `restore.sh` re-enables the stock one and uninstalls this |
+| **TV Home** (`tvhome/`) is the home screen | a row of TV apps (order in `Apps.java`; focus starts on the first) · inputs · Wi-Fi · Cameras · Settings (hide any app or input) · clock | `restore.sh` re-enables the stock one and uninstalls this |
 | YouTube restricted in background | it started itself at every boot; it still opens when used or cast to | `restore.sh` |
 | Animations 0.5× | snappier menus | `restore.sh` |
 | Screensaver after 2 h instead of 5 min | it covered casts 5 min after the last remote press | `restore.sh` |
@@ -47,6 +47,8 @@ Wi-Fi QR code.
    - `cp tvhome/wifi.conf.example tvhome/wifi.conf` — network name and password for the
      *Get the Wi-Fi* page (QR code + details for guests).
    - `cp tvhome/cameras.conf.example tvhome/cameras.conf` — the *Cameras* tile (see below).
+   - `cp tvhome/inputs.conf.example tvhome/inputs.conf` — your own names for the input tiles
+     ("HDMI 2=PlayStation | Gaming"; the port's name shows small in the corner).
 5. **Build**: `tvhome/build.sh` (and `triplec-tv/build.sh` if you want that app). Each makes its
    own signing key on first run: keep `*.keystore` somewhere safe, since updates need the same key.
 6. **Apply**: `./disable.sh` (installs TV Home, disables the list, applies the settings). Re-run it
@@ -71,8 +73,20 @@ Undo everything: turn debugging back on, then `./restore.sh`.
   `assets/caf_shim.js`, which plays the stream in an `<audio>` element and raises the same player
   events, so the TV shows exactly the cast UI with no phone. A pattern that works for any custom
   Cast receiver.
-  OK plays and pauses; left/right and the volume buttons set the stream's own volume (with a
-  TV on optical out, the TV's volume doesn't reach the sound system, but this does).
+  OK plays and pauses; left/right set the stream's own volume.
+
+## Sound to a Sonos (or any sound system)
+
+Use **HDMI ARC** rather than optical. Plug the sound system's HDMI into the TV's ARC port (HDMI 1
+here), and turn on **T-Link** (HDMI-CEC) in the TV's settings. The remote's volume buttons then
+drive the sound system with the TV's own volume display, the TV's speakers switch off, and the
+system wakes and sleeps with the TV. Sonos's optical adapter is just a plug on the end of its HDMI
+cable: take it off. Over optical the TV's volume never reaches the sound system, because optical is
+fixed-level.
+
+There's no way around that on this TV: TCL's input layer handles the volume buttons before Android
+passes keys on, so an app (even an accessibility key filter) never sees them. Triple C's left/right
+keys still set the stream's own volume.
 
 ## The Cameras tile
 
@@ -107,9 +121,11 @@ second) and every tile moves; OK opens one camera in HD (one real decoder) with 
 - go2rtc's `video-rtc.js` player takes its settings as JS properties, not HTML attributes: a
   `mode="mse"` attribute is ignored, so it also tries WebRTC, which takes over whenever it connects.
 - Tapo's "VGA" relay stream is really 1280×720 (1280×960 on a doorbell).
-- Optical (S/PDIF) out is fixed-level: the TV's volume buttons don't change it. On this TV,
-  *Digital Audio Out* = **PCM** (Settings → Audio → Advanced) gave noticeably better lip sync with a
-  Sonos than *Auto*.
+- Optical (S/PDIF) out is fixed-level: the TV's volume buttons don't change it (use HDMI ARC, see
+  above). *Digital Audio Out* = **PCM** (Settings → Audio → Advanced) gave noticeably better lip
+  sync with a Sonos than *Auto*.
+- TCL handles the volume buttons in its own input layer, before Android's key filters, so apps
+  and accessibility services never get them.
 
 ## License
 
