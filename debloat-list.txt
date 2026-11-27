@@ -1,0 +1,44 @@
+# Apps disable.sh turns off on the TCL 50S434-CA (Android TV 9, "Living Room TV").
+# One package per line; anything after the package name is a comment.
+# Nothing is deleted: restore.sh turns every one of these back on.
+# RAM figures are what each was using at idle on 2026-11-26.
+
+# Must stay FIRST: at every boot this downloads a YES/NO app list from TCL's servers and
+# switches apps on/off to match (it turned smartalexa back on after the first restart).
+com.tcl.appstatecontroller          # TCL remote app on/off switcher
+
+com.google.android.katniss         # Google voice search + mic button (~188 MB, biggest win)
+com.tcl.assistant                   # TCL's Google Assistant wrapper (~70 MB)
+com.google.android.tvrecommendations # "Recommended / sponsored" rows on home (~27 MB)
+com.tcl.bi                          # TCL analytics / telemetry (~20 MB)
+com.tcl.smartalexa                  # Alexa integration (~10 MB)
+com.tcl.messagebox                  # TCL promo / message pop-ups (~6 MB)
+com.tcl.appmarket2                  # TCL app store
+com.google.android.play.games       # Google Play Games
+com.google.android.videos           # Google Play Movies / Google TV app
+com.tcl.showmode                    # In-store demo mode
+com.tcl.esticker                    # In-store energy-sticker overlay
+
+# Lockdown (added 2026-11-26): phone-home / reporting pieces nothing else needs.
+com.tcl.xian.StartandroidService    # TCL cloud device login at every boot/wake
+com.tcl.tvweishi                    # TCL "TV Manager" cleaner (shield icon on home)
+com.google.android.feedback         # Google crash/feedback sender
+com.google.android.tv.bugreportsender # Google bug-report sender
+
+# Home screen swap (added 2026-11-26): our own tvhome/ app replaces these.
+# disable.sh installs tvhome BEFORE this list runs, so the TV is never left without a home screen.
+com.google.android.tvlauncher       # stock home screen (ads banner, recommendation rows, 60-110 MB)
+com.tcl.partnercustomizer           # TCL rows/config for the stock home screen, TCL Channel tile
+com.tcl.partnercustomizer.resource  # its resources
+
+# NOT in this list on purpose (do not add without testing a cast afterwards):
+#   com.google.android.apps.mediashell   Chromecast built-in
+#   com.google.android.gms / .gsf        Google Play Services (casting depends on it)
+#   com.tcl.tv / com.tcl.tvinput         HDMI inputs and the input viewer
+#   com.android.providers.tv             input list
+#   com.tcl.settings / com.android.tv.settings   picture + system settings
+#   com.tcl.tcl_bt_rcu_service / com.tcl.autopair / com.tcl.keycustomfunctionservice   the remote
+#   com.google.android.tungsten.setupwraith      setup wizard (breaks Home if disabled)
+#   com.tcl.versionUpdateApp                     system updates
+#   com.android.vending                          Play Store, keeps Chromecast + YouTube updated
+#   YouTube / Netflix / Prime Video / YouTube Music   these are what actually play when you cast from a phone

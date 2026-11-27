@@ -1,0 +1,16 @@
+# secrets: real config (see the .example files) - baked into the APKs at build time
+tvhome/wifi.conf
+tvhome/cameras.conf
+
+# built apps (they contain the config above) and signing keys (keep a private copy: updates need them)
+*.apk
+*.idsig
+*.keystore
+**/build/
+
+# this TV's snapshot (device identifiers, Bluetooth addresses) and screenshots (camera views, Wi-Fi page)
+backup/
+screenshots/
+
+.claude/
+.DS_Store
