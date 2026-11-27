@@ -2,9 +2,6 @@ package local.tvhome;
 
 import android.app.Activity;
 import android.graphics.Bitmap;
-import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.StateListDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -13,7 +10,6 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
-import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.ConsoleMessage;
@@ -25,9 +21,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.Button;
 import android.widget.FrameLayout;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.util.Collections;
@@ -35,17 +29,14 @@ import java.util.Map;
 
 /**
  * The house's cameras, full screen (the camera site's /wall?house=..&tv=1, URL in cameras.conf), signed in with
- * this TV's device key.
- * Back on the wall offers the full camera site (every house) or leaving; on the site's other pages Back steps
- * back through them. Leaving stops every stream.
+ * this TV's device key. The column on the left of the page switches property.
+ * Back: a camera filling the screen goes back to the grid (the page handles that); on the grid it leaves, no
+ * questions asked. Leaving stops every stream.
  */
 public class CamerasActivity extends Activity {
     private static final String TAG = "tvhome-cams";
-    private static final int ACCENT = 0xFF3B82F6;
 
     private WebView web;
-    private FrameLayout root;
-    private View menu;
     private String base, house, key;
     private final Handler main = new Handler(Looper.getMainLooper());
 
@@ -57,7 +48,7 @@ public class CamerasActivity extends Activity {
         house = conf.containsKey("HOUSE") ? conf.get("HOUSE") : "cottage";
         key = conf.get("KEY");
 
-        root = new FrameLayout(this);
+        FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(0xFF000000);
         setContentView(root);
         if (TextUtils.isEmpty(key) || TextUtils.isEmpty(base)) {
@@ -111,130 +102,18 @@ public class CamerasActivity extends Activity {
         openWall();
     }
 
-    /** Every camera at the house, full screen. */
+    /** Every camera at the house, full screen. The key rides in a header, never the URL; already signed in, the
+     *  site just goes on to the wall. */
     private void openWall() {
-        hideMenu();
-        signIn("/wall?house=" + Uri.encode(house) + "&tv=1");
-    }
-
-    /** The camera site as usual, every house in its filter. */
-    private void openSite() {
-        hideMenu();
-        signIn("/?house=all");
-    }
-
-    // The key rides in a header, never the URL; already signed in, the site just goes on to next.
-    private void signIn(String next) {
         if (web == null) return;
+        String next = "/wall?house=" + Uri.encode(house) + "&tv=1";
         web.loadUrl(base + "/device/login?next=" + Uri.encode(next), Collections.singletonMap("Authorization", "Bearer " + key));
     }
 
-    private boolean onWall() {
-        String u = web == null ? null : web.getUrl();
-        return u != null && u.contains("/wall") && u.contains("tv=1");
-    }
-
     @Override public void onBackPressed() {
-        if (menu != null) { hideMenu(); return; }
         if (web == null) { finish(); return; }
-        if (onWall()) {   // the wall first: a camera filling the screen goes back to the grid
-            web.evaluateJavascript("window.tvBack ? window.tvBack() : false", r -> { if (!"true".equals(r)) showMenu(); });
-            return;
-        }
-        if (web.canGoBack()) { web.goBack(); return; }
-        showMenu();
-    }
-
-    /** A modal over the dimmed picture: where to go from here. */
-    private void showMenu() {
-        boolean wall = onWall();
-        FrameLayout scrim = new FrameLayout(this);
-        scrim.setBackgroundColor(0x99000000);
-        scrim.setClickable(true);
-
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setGravity(Gravity.CENTER_HORIZONTAL);
-        card.setPadding(dp(40), dp(30), dp(40), dp(32));
-        GradientDrawable bg = rounded(0xF2151B24);
-        bg.setCornerRadius(dp(22));
-        bg.setStroke(dp(1), 0x26FFFFFF);
-        card.setBackground(bg);
-        card.setElevation(dp(16));
-
-        TextView title = new TextView(this);
-        title.setText("Cameras");
-        title.setTextColor(0xFFFFFFFF);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setGravity(Gravity.CENTER);
-        card.addView(title);
-        TextView hint = new TextView(this);
-        hint.setText(wall ? "Camera menu has every house, events and recordings" : "Back to the full-screen " + label(house) + " view");
-        hint.setTextColor(0xFFA3AEBD);
-        hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        hint.setGravity(Gravity.CENTER);
-        hint.setPadding(0, dp(6), 0, dp(24));
-        card.addView(hint);
-
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER);
-        Button first = button(wall ? "Camera menu" : label(house) + " cameras", wall ? v -> openSite() : v -> openWall());
-        row.addView(first, buttonParams());
-        row.addView(button("Exit", v -> finish()), buttonParams());
-        card.addView(row);
-
-        scrim.addView(card, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
-        if (web != null) {   // the page behind keeps playing but can't take the remote's focus
-            web.setFocusable(false);
-            web.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
-        }
-        menu = scrim;
-        root.addView(scrim, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        first.requestFocus();
-    }
-
-    private void hideMenu() {
-        if (menu == null) return;
-        root.removeView(menu);
-        menu = null;
-        if (web != null) {
-            web.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
-            web.setFocusable(true);
-            web.requestFocus();
-        }
-    }
-
-    private Button button(String text, View.OnClickListener click) {
-        Button b = new Button(this);
-        b.setText(text);
-        b.setAllCaps(false);
-        b.setTextColor(0xFFFFFFFF);
-        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
-        b.setTypeface(Typeface.DEFAULT_BOLD);
-        b.setPadding(dp(28), dp(14), dp(28), dp(14));
-        StateListDrawable bg = new StateListDrawable();
-        bg.addState(new int[]{android.R.attr.state_focused}, rounded(ACCENT));
-        bg.addState(new int[0], rounded(0xFF2A323D));
-        b.setBackground(bg);
-        b.setStateListAnimator(null);
-        b.setOnClickListener(click);
-        return b;
-    }
-
-    private LinearLayout.LayoutParams buttonParams() {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(210), ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMargins(dp(8), 0, dp(8), 0);
-        return lp;
-    }
-
-    private GradientDrawable rounded(int color) {
-        GradientDrawable g = new GradientDrawable();
-        g.setColor(color);
-        g.setCornerRadius(dp(14));
-        return g;
+        // The page first: a camera filling the screen goes back to the grid. Anything else leaves.
+        web.evaluateJavascript("window.tvBack ? window.tvBack() : false", r -> { if (!"true".equals(r)) finish(); });
     }
 
     /** "cottage" -> "Cottage", "lake-house" -> "Lake House". */
@@ -262,9 +141,5 @@ public class CamerasActivity extends Activity {
             web = null;
         }
         super.onDestroy();
-    }
-
-    private int dp(int v) {
-        return Math.round(v * getResources().getDisplayMetrics().density);
     }
 }

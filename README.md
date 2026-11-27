@@ -75,8 +75,9 @@ Undo everything: turn debugging back on, then `./restore.sh`.
 ## The Cameras tile
 
 It opens a camera site's full-screen multi-view for one property, signed in with a **device
-key** sent as `Authorization: Bearer <key>` to `/device/login` (never in a URL). Back offers the
-site's normal menu or Exit. The site side lives in [ndroo/cameras](https://github.com/ndroo/cameras)
+key** sent as `Authorization: Bearer <key>` to `/device/login` (never in a URL). The column on the
+left switches property; OK on a camera fills the screen with it in HD; Back returns to the grid,
+and Back on the grid leaves. The site side lives in [ndroo/cameras](https://github.com/ndroo/cameras)
 (device keys, `/wall?house=<slug>&tv=1`, `/stream/<id>/wall.mjpeg`).
 
 Why the wall shows **pictures, not video**: this TV's chip decodes only **two H.264 videos at
@@ -101,6 +102,8 @@ second) and every tile moves; OK opens one camera in HD (one real decoder) with 
   `WebChromeClient.getDefaultVideoPoster()`.
 - Clearing a `<video>`'s `src` doesn't free its hardware decoder straight away;
   `removeAttribute('src')` + `load()` does.
+- go2rtc's `video-rtc.js` player takes its settings as JS properties, not HTML attributes: a
+  `mode="mse"` attribute is ignored, so it also tries WebRTC, which takes over whenever it connects.
 - Tapo's "VGA" relay stream is really 1280×720 (1280×960 on a doorbell).
 
 ## License
