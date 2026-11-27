@@ -2,6 +2,8 @@ package local.tvhome;
 
 import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
@@ -26,6 +28,7 @@ public class HomeGuardService extends AccessibilityService {
     private static final long DEBOUNCE_MS = 1500;     // ignore the stock home's trailing events
     private static final long LOOP_WINDOW_MS = 60_000;
     private static final int LOOP_MAX = 8;            // more launches than this in a minute = something is wrong
+    private static final long BOOT_WINDOW_MS = 4 * 60_000;   // connecting this soon after boot: Google's home is already up
 
     /** Set by HomeActivity: true while TV Home is on screen. */
     static volatile boolean homeVisible;
@@ -34,12 +37,18 @@ public class HomeGuardService extends AccessibilityService {
 
     private long lastLaunch;
     private final ArrayDeque<Long> recent = new ArrayDeque<>();
+    private final Handler main = new Handler(Looper.getMainLooper());
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event == null || event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         CharSequence pkg = event.getPackageName();
         if (pkg == null || !STOCK_HOME.contentEquals(pkg)) return;
 
+        openTvHome("stock home came to the front");
+    }
+
+    /** Opens TV Home unless it is already showing, the guard is paused, or something is looping. */
+    private void openTvHome(String why) {
         long now = SystemClock.elapsedRealtime();
         if (homeVisible || now < pausedUntil || now - lastLaunch < DEBOUNCE_MS) return;
 
@@ -54,7 +63,7 @@ public class HomeGuardService extends AccessibilityService {
         recent.addLast(now);
         try {
             startActivity(new Intent(this, HomeActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            Log.i(TAG, "stock home came to the front; opened TV Home");
+            Log.i(TAG, why + "; opened TV Home");
         } catch (RuntimeException e) {
             Log.w(TAG, "could not open TV Home: " + e);
         }
@@ -65,5 +74,11 @@ public class HomeGuardService extends AccessibilityService {
     @Override protected void onServiceConnected() {
         super.onServiceConnected();
         Log.i(TAG, "home guard connected");
+        // Right after boot Google's home is already on screen before this service connects, so no window event
+        // will ever announce it: cover it once. Only that soon after boot; a reconnect later must not pull you
+        // out of an app.
+        if (SystemClock.elapsedRealtime() < BOOT_WINDOW_MS) {
+            main.postDelayed(() -> openTvHome("just booted"), 2000);
+        }
     }
 }

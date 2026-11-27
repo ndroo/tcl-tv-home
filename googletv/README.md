@@ -56,8 +56,10 @@ TV Home ships a small accessibility service, `HomeGuardService`. Android only te
 window** appears (`res/xml/home_guard_config.xml` limits it to that one package; it reads no screen content), and when
 TV Home isn't already showing it opens TV Home on top. Nothing is disabled, so Wi-Fi, the keyboard and the setup
 wizard are untouched. Android 14 lets an accessibility service start the activity from the background. Google's home
-may show for an instant before TV Home covers it. If the service ever launches more than 8 times in a minute it
-stands down for a minute. `disable.sh` turns it on with
+may show for an instant before TV Home covers it. At boot Google's home is already up before the service starts, so
+a window event never announces it: if the service connects within four minutes of boot it opens TV Home once (a
+later reconnect doesn't, so it can't pull you out of an app). If the service ever launches more than 8 times in a
+minute it stands down for a minute. `disable.sh` turns it on with
 `settings put secure enabled_accessibility_services local.tvhome/local.tvhome.HomeGuardService` plus
 `accessibility_enabled 1`; **undo any time** with `adb shell settings put secure enabled_accessibility_services ""`
 (or `restore.sh`).
