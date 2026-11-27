@@ -13,6 +13,49 @@
 
   var listeners = {}, interceptors = {}, media = null, audio = null, state = PS.IDLE, loads = 0, startTimer = 0, retries = 0;
 
+  // Starting (OK pressed, sound not there yet: the page waits up to 2 s to line up with the broadcast): the page's pause
+  // icon becomes a spinning ring at once, and further OKs are ignored. Before, nothing showed for a moment and a second
+  // OK paused it again, so it looked as if it wouldn't resume.
+  var starting = false, startingTimer = 0;
+  var css = document.createElement('style');
+  css.textContent = 'body.tc-starting .paused svg{display:none}' +
+    'body.tc-starting .paused::after{content:"";width:11vh;height:11vh;box-sizing:border-box;border-radius:50%;' +
+    'border:1.1vh solid rgba(255,255,255,.25);border-top-color:#ff4d3d;animation:tc-spin .8s linear infinite}' +
+    '@keyframes tc-spin{to{transform:rotate(360deg)}}';
+  (document.head || document.documentElement).appendChild(css);
+  // The stream's own volume (left/right and the volume buttons, from the app). Over the TV's optical out the TV's
+  // volume does nothing, but this scales the sound itself, so it reaches the sound system. 20 steps of 2 dB; kept.
+  var STEPS = 20, vol = STEPS, muted = false, hud = null, hudTimer = 0;
+  try { var saved = parseInt(localStorage.getItem('tcTvVol'), 10); if (saved >= 0 && saved <= STEPS) vol = saved; } catch (e) {}
+  css.textContent += '#tc-vol{position:fixed;left:50%;bottom:7vh;transform:translateX(-50%);display:flex;align-items:center;gap:2.2vh;' +
+    'padding:1.7vh 3.2vh;border-radius:99px;background:#17171d;border:1px solid rgba(255,255,255,.16);color:#f4f3f7;' +
+    'box-shadow:0 1.5vh 5vh rgba(0,0,0,.6);' +
+    'font:600 2.6vh/1 var(--body,system-ui),sans-serif;opacity:0;transition:opacity .25s;z-index:50;pointer-events:none}' +
+    '#tc-vol.on{opacity:1}#tc-vol svg{width:3.4vh;height:3.4vh;flex:none}' +
+    '#tc-vol .bar{width:38vh;height:1.2vh;border-radius:99px;background:rgba(255,255,255,.18);overflow:hidden}' +
+    '#tc-vol .bar i{display:block;height:100%;background:#ff4d3d;border-radius:99px;transition:width .12s}' +
+    '#tc-vol b{min-width:8vh;text-align:right;font-variant-numeric:tabular-nums}';
+  function gain() { return muted || vol === 0 ? 0 : Math.pow(10, (vol - STEPS) / 10); }
+  function showVolume() {
+    if (!document.body) return;
+    if (!hud) { hud = document.createElement('div'); hud.id = 'tc-vol'; document.body.appendChild(hud); }
+    var off = muted || vol === 0;
+    hud.innerHTML = '<svg viewBox="0 0 24 24" fill="#fff"><path d="M3 9v6h4l5 5V4L7 9H3z"/>' +
+      (off ? '<path d="M15.5 9.5l5 5m0-5l-5 5" stroke="#fff" stroke-width="2" stroke-linecap="round"/>'
+           : '<path d="M16.5 12A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z"/>') + '</svg>' +
+      '<div class="bar"><i style="width:' + (muted ? 0 : Math.round(vol / STEPS * 100)) + '%"></i></div><b>' + (muted ? 'Muted' : vol) + '</b>';
+    hud.classList.add('on');
+    clearTimeout(hudTimer);
+    hudTimer = setTimeout(function () { hud.classList.remove('on'); }, 1800);
+  }
+
+  function setStarting(on) {
+    starting = on;
+    clearTimeout(startingTimer);
+    if (on) startingTimer = setTimeout(function () { setStarting(false); }, 45000);   // never stuck ignoring OK
+    if (document.body) document.body.classList.toggle('tc-starting', on);
+  }
+
   function emit(type, extra) {
     var ev = { type: type };
     for (var k in extra || {}) ev[k] = extra[k];
@@ -34,10 +77,12 @@
     var a = audio = document.createElement('audio');
     var mine = function () { return a === audio; };
     a.preload = 'auto';
+    a.volume = gain();
     a.addEventListener('loadstart', function () { if (mine() && a.getAttribute('src')) emit(ET.LOAD_START); });
     a.addEventListener('playing', function () {
       if (!mine()) return;
       clearTimeout(startTimer);
+      setStarting(false);
       state = PS.PLAYING;
       emit(ET.BUFFERING, { isBuffering: false });
       emit(ET.PLAYING);
@@ -49,6 +94,7 @@
     });
     a.addEventListener('pause', function () {
       if (!mine() || state === PS.IDLE || a.ended) return;
+      setStarting(false);
       state = PS.PAUSED;
       emit(ET.PAUSE);
     });
@@ -60,6 +106,7 @@
     });
     a.addEventListener('error', function () {
       if (!mine() || !a.getAttribute('src') || state === PS.IDLE) return;
+      setStarting(false);
       state = PS.IDLE;
       emit(ET.ERROR);
       emit(ET.MEDIA_FINISHED, { endedReason: ER.ERROR });
@@ -97,6 +144,7 @@
           startTimer = setTimeout(function () {
             if (mine !== loads || state === PS.PLAYING || state === PS.IDLE) return;
             if (retries++ < 2) { console.warn('[tc-tv] not playing after 15 s, starting again'); freshLoad(); }
+            else setStarting(false);
           }, 15000);
         }
       });
@@ -104,6 +152,7 @@
   };
 
   function freshLoad() {
+    setStarting(true);
     var r = new LoadRequestData();
     var lang = new URLSearchParams(location.search).get('lang') || 'en';
     r.media = { contentId: STREAM, contentUrl: STREAM, contentType: 'audio/mpeg', streamType: 'LIVE',
@@ -134,7 +183,10 @@
 
   // For the Android app: the remote's play/pause, and stopping when the app is left.
   window.__tcTv = {
-    toggle: function () { (!audio || audio.paused || state === PS.IDLE) ? this.play() : this.pause(); },
+    toggle: function () {
+      if (starting) return;   // on its way: a second OK would pause it again
+      (!audio || audio.paused || state === PS.IDLE) ? this.play() : this.pause();
+    },
     // A live stream: playing again starts it fresh (in sync), rather than carrying on from a stale buffer.
     play: function () { retries = 0; freshLoad(); },
     pause: function () { if (audio && !audio.paused) audio.pause(); },
@@ -142,8 +194,17 @@
       loads++;
       state = PS.IDLE;
       clearTimeout(startTimer);
+      setStarting(false);
       if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); }
     },
-    state: function () { return state + (audio ? ' t=' + audio.currentTime.toFixed(1) : ''); }
+    volume: function (step) {
+      muted = false;
+      vol = Math.max(0, Math.min(STEPS, vol + step));
+      try { localStorage.setItem('tcTvVol', String(vol)); } catch (e) {}
+      if (audio) audio.volume = gain();
+      showVolume();
+    },
+    mute: function () { muted = !muted; if (audio) audio.volume = gain(); showVolume(); },
+    state: function () { return state + (audio ? ' t=' + audio.currentTime.toFixed(1) + ' vol=' + audio.volume.toFixed(3) : '') + (starting ? ' starting' : ''); }
   };
 })();

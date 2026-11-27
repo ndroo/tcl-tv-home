@@ -105,6 +105,14 @@ public class PlayerActivity extends Activity {
                 || k == KeyEvent.KEYCODE_ENTER || k == KeyEvent.KEYCODE_HEADSETHOOK;
         boolean media = toggle || k == KeyEvent.KEYCODE_MEDIA_PLAY || k == KeyEvent.KEYCODE_MEDIA_PAUSE
                 || k == KeyEvent.KEYCODE_MEDIA_STOP;
+        // Left/right and the volume buttons: the stream's own volume (over optical the TV's volume does nothing). Held, it
+        // keeps going.
+        int vol = k == KeyEvent.KEYCODE_DPAD_RIGHT || k == KeyEvent.KEYCODE_VOLUME_UP ? 1
+                : k == KeyEvent.KEYCODE_DPAD_LEFT || k == KeyEvent.KEYCODE_VOLUME_DOWN ? -1 : 0;
+        if (vol != 0 || k == KeyEvent.KEYCODE_VOLUME_MUTE) {
+            if (e.getAction() == KeyEvent.ACTION_DOWN) js(vol != 0 ? "volume(" + vol + ")" : (e.getRepeatCount() == 0 ? "mute()" : "state()"));
+            return true;
+        }
         if (!media) return super.dispatchKeyEvent(e);
         if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
             if (toggle) js("toggle()");
