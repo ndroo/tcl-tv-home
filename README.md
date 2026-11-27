@@ -14,6 +14,22 @@ Built with the plain Android SDK tools (no Gradle, no Android Studio) on macOS.
 > Tested on one TCL model and firmware. Package names and behaviour differ between models; read
 > `debloat-list.txt` before running anything on another TV, and keep the snapshot.
 
+## Which device is this for?
+
+This repo now covers **two kinds of TV**. Pick by what your TV runs:
+
+| | TV with Android TV built in (this README) | TV you can't modify + a Chromecast with Google TV ([`googletv/`](googletv/README.md)) |
+|---|---|---|
+| Example | TCL 50S434-CA, Android TV 9 | TCL 32S327-CA (a Roku TV), plus the box on an HDMI port |
+| What gets changed | the TV | the box; the TV only gets a few menu settings |
+| Scripts | `snapshot.sh` `disable.sh` `restore.sh` `check.sh` in the repo root | the same four in `googletv/` |
+| Home screen | TV Home **is** the launcher (the stock one is disabled) | TV Home opens **on top of** Google's home (a "home guard"); the stock launcher stays on |
+| Casting | the TV's own Chromecast built-in | the box's Chromecast built-in (a Roku keeps AirPlay) |
+| Android | 9 | 14 |
+
+How the second one came about, what didn't work (a Roku can't be flashed or rooted; replacing the launcher on the
+Google TV box crashed it) and what did, is written up in [`googletv/README.md`](googletv/README.md#how-we-got-here).
+
 ## What it changes
 
 | Change | Why | Undo |
@@ -65,6 +81,8 @@ Undo everything: turn debugging back on, then `./restore.sh`.
 - `debloat-list.txt` — what gets disabled and why, plus what must never be.
 - `castcheck.py` — a tiny Chromecast client (standard library only, no ADB needed):
   `python3 castcheck.py status|play|launch <appId>|stop`.
+- `googletv/` — the same on/off scripts, and its own README, for a **Chromecast with Google TV** on a TV you can't
+  modify (a Roku TV, say). The root scripts above are for a TV that has Android TV built in.
 - `tvhome/` — the home screen (`HomeActivity`), its Settings (TV settings + show/hide apps),
   the Wi-Fi page, the Cameras screen, line icons drawn in code; `make_wifi_qr.swift` makes the QR
   with macOS CoreImage and the build refuses to continue unless it decodes back exactly.
@@ -126,6 +144,19 @@ second) and every tile moves; OK opens one camera in HD (one real decoder) with 
   sync with a Sonos than *Auto*.
 - TCL handles the volume buttons in its own input layer, before Android's key filters, so apps
   and accessibility services never get them.
+
+## A second TV: Chromecast with Google TV (`googletv/`)
+
+For a TV that can't be modified itself (a Roku TV, say), plug a **Chromecast with Google TV** into an HDMI port, set
+the TV to power on to that port with HDMI-CEC on, and slim the box down the same safe, reversible way
+(`googletv/snapshot.sh`, `disable.sh`, `check.sh`, `restore.sh`). TV Home runs on it too, but **on top of** Google's
+home through a small accessibility service rather than as the launcher: on this box the home screen can't be
+replaced, and trying to crashed it twice. Setup steps, the home guard, the full story of how we got here, and the
+rules for this box are in **[`googletv/README.md`](googletv/README.md)**.
+
+A **Roku TV** can't be given the first treatment at all: its firmware is signed, there is no ADB, a channel can't
+replace the home screen or start on power-up, and the one public root (RootMyRoku) only worked up to Roku OS 9.4.
+Roku's "Developer Mode" sideloads your own BrightScript channel, nothing more.
 
 ## License
 

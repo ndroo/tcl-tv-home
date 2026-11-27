@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_guard_description">Opens TV Home whenever Google TV\'s own home screen comes to the front. It is told only when that one app\'s window changes and reads nothing on screen.</string>
+</resources>

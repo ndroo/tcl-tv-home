@@ -86,8 +86,14 @@ public class HomeActivity extends Activity {
         super.onDestroy();
     }
 
+    @Override protected void onPause() {
+        HomeGuardService.homeVisible = false;
+        super.onPause();
+    }
+
     @Override protected void onResume() {
         super.onResume();
+        HomeGuardService.homeVisible = true;
         refreshCastLine();
         refreshInputs();
         refreshApps();

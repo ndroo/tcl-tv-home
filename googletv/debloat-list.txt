@@ -1,0 +1,26 @@
+# Apps googletv/disable.sh turns off on a Chromecast with Google TV (4K, "sabrina", Android 14).
+# One package per line; anything after the package name is a comment.
+# Nothing is deleted: googletv/restore.sh turns every one of these back on.
+# Approved 2026-11-27.
+#
+# NEVER disable these on this box (learned the hard way on 2026-11-27, see the README):
+#   com.google.android.apps.tv.launcherx, com.google.android.tvlauncher   the home screen
+#   com.google.android.tungsten.setupwraith   registers a fallback HOME screen that outranks any third-party
+#                                             home (so replacing the launcher is not possible), and its removal
+#                                             left the box with no Wi-Fi password screen/keyboard
+#   com.google.android.katniss                Assistant + its voice keyboard (left on until proven harmless)
+#   com.google.android.inputmethod.latin      the keyboard
+
+com.google.android.videos               # Google Movies & TV
+com.google.android.play.games           # Google Play Games
+
+com.tubitv                              # Tubi
+com.disney.disneyplus                   # Disney+
+com.cbs.ca                              # Paramount+
+ca.bellmedia.cravetv                    # Crave
+com.quickplay.android.bellmediaplayer   # Fibe TV (comes with the box; appeared after a factory reset)
+com.haystack.android                    # Haystack News (comes with the box; appeared after a factory reset)
+
+# Kept on purpose: Chromecast (com.google.android.apps.mediashell, chromecastservice), Play Services,
+# Play Store (installs Plex, keeps Chromecast updated), YouTube / Netflix / Prime Video,
+# com.google.android.tv.remote.service (the Google TV phone app as a remote), Settings.
