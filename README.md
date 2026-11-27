@@ -71,6 +71,8 @@ Undo everything: turn debugging back on, then `./restore.sh`.
   `assets/caf_shim.js`, which plays the stream in an `<audio>` element and raises the same player
   events, so the TV shows exactly the cast UI with no phone. A pattern that works for any custom
   Cast receiver.
+  OK plays and pauses; left/right and the volume buttons set the stream's own volume (with a
+  TV on optical out, the TV's volume doesn't reach the sound system, but this does).
 
 ## The Cameras tile
 
@@ -105,6 +107,9 @@ second) and every tile moves; OK opens one camera in HD (one real decoder) with 
 - go2rtc's `video-rtc.js` player takes its settings as JS properties, not HTML attributes: a
   `mode="mse"` attribute is ignored, so it also tries WebRTC, which takes over whenever it connects.
 - Tapo's "VGA" relay stream is really 1280×720 (1280×960 on a doorbell).
+- Optical (S/PDIF) out is fixed-level: the TV's volume buttons don't change it. On this TV,
+  *Digital Audio Out* = **PCM** (Settings → Audio → Advanced) gave noticeably better lip sync with a
+  Sonos than *Auto*.
 
 ## License
 
